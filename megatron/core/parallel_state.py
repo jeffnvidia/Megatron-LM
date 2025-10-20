@@ -108,6 +108,7 @@ _HIERARCHICAL_CONTEXT_PARALLEL_GROUPS = None
 
 # Data parallel group information with context parallel combined.
 _DATA_PARALLEL_GROUP_WITH_CP = None
+_DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER = None
 _DATA_PARALLEL_GROUP_WITH_CP_GLOO = None
 _DATA_PARALLEL_GLOBAL_RANKS_WITH_CP = None
 
@@ -734,6 +735,7 @@ def initialize_model_parallel(
     global _DATA_PARALLEL_GROUP_GLOO
     global _DATA_PARALLEL_GLOBAL_RANKS
     global _DATA_PARALLEL_GROUP_WITH_CP
+    global _DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER
     global _DATA_PARALLEL_GROUP_WITH_CP_GLOO
     global _DATA_PARALLEL_GLOBAL_RANKS_WITH_CP
     global _INTRA_PARTIAL_DATA_PARALLEL_GROUP_WITH_CP
@@ -765,6 +767,12 @@ def initialize_model_parallel(
             pg_options=get_nccl_options("dp_cp", nccl_comm_cfgs),
             group_desc="DATA_PARALLEL_GROUP_WITH_CP",
         )
+        group_with_cp_grad_buffer = create_group(
+            ranks_with_cp,
+            timeout=timeout,
+            pg_options=get_nccl_options("dp_cp", nccl_comm_cfgs),
+            group_desc="DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER",
+        )
         if create_gloo_process_groups:
             group_with_cp_gloo = create_group(
                 ranks_with_cp,
@@ -776,6 +784,7 @@ def initialize_model_parallel(
             group_with_cp_gloo = None
         if rank in ranks_with_cp:
             _DATA_PARALLEL_GROUP_WITH_CP = group_with_cp
+            _DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER = group_with_cp_grad_buffer
             _DATA_PARALLEL_GROUP_WITH_CP_GLOO = group_with_cp_gloo
             _DATA_PARALLEL_GLOBAL_RANKS_WITH_CP = ranks_with_cp
 
@@ -1306,6 +1315,14 @@ def get_data_parallel_group(with_context_parallel=False, partial_data_parallel=F
         assert _DATA_PARALLEL_GROUP is not None, "data parallel group is not initialized"
         assert partial_data_parallel == False, "Partial DP for Optimizer needs to include CP"
         return _DATA_PARALLEL_GROUP
+
+
+def get_data_parallel_group_grad_buffer():
+    """Get the data-parallel group the caller rank belongs to."""
+    assert (
+        _DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER is not None
+    ), "data parallel group with context parallel combined is not initialized"
+    return _DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER
 
 
 def get_data_parallel_group_gloo(with_context_parallel=False, partial_data_parallel=False):
@@ -1917,6 +1934,9 @@ def destroy_model_parallel():
 
     global _DATA_PARALLEL_GROUP_WITH_CP
     _DATA_PARALLEL_GROUP_WITH_CP = None
+
+    global _DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER
+    _DATA_PARALLEL_GROUP_WITH_CP_GRAD_BUFFER = None
 
     global _CONTEXT_PARALLEL_GROUP
     _CONTEXT_PARALLEL_GROUP = None

@@ -167,6 +167,7 @@ class FullyShardedDataParallel(_BaseDataParallel):
                 dp_cp_group = parallel_state.get_data_parallel_group(
                     with_context_parallel=True, partial_data_parallel=False
                 )
+                dp_cp_group_grad_buffer = parallel_state.get_data_parallel_group_grad_buffer()
                 outer_fsdp_group = None
                 hybrid_fsdp_group = None
         else:
@@ -203,10 +204,10 @@ class FullyShardedDataParallel(_BaseDataParallel):
             mesh = _get_dp_tp_mesh(dp_cp_group, tp_group)
             dist_index = FSDPDistributedIndex(
                 device_mesh=DeviceMesh.from_group(
-                    [dp_cp_group, tp_group],
+                    [dp_cp_group, tp_group, dp_cp_group_grad_buffer],
                     device_type="cuda",
                     mesh=mesh.tolist(),
-                    mesh_dim_names=["dp_cp", "tp"],
+                    mesh_dim_names=["dp_cp", "tp", "dp_cp_grad_buffer"],
                 ),
                 dp_shard_dim="dp_cp",
                 tp_dim="tp",

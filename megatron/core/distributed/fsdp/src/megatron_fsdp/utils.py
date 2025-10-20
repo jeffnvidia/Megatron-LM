@@ -709,6 +709,11 @@ class FSDPDistributedIndex:
             if contains_submesh(self.device_mesh, self.dp_shard_dim)
             else None
         )
+        self.fsdp_group_grad_buffer = (
+            self.device_mesh["dp_cp_grad_buffer"].get_group()
+            if contains_submesh(self.device_mesh, "dp_cp_grad_buffer")
+            else None
+        )
         # Retrieve the outer-FSDP process group from the DeviceMesh.
         self.outer_fsdp_group = (
             self.device_mesh[self.dp_outer_dim].get_group()
@@ -816,6 +821,13 @@ class FSDPDistributedIndex:
             # Expert parallel is not supported
             return None
         return self.fsdp_group
+
+def get_fsdp_group_grad_buffer(self, is_expert_parallel: bool = False) -> ProcessGroup:
+        """Get the FSDP process group grad buffer."""
+        if is_expert_parallel:
+            # Expert parallel is not supported
+            return None
+        return self.fsdp_group_grad_buffer
 
     def get_outer_fsdp_group(self) -> ProcessGroup:
         """Get the outer-FSDP process group."""

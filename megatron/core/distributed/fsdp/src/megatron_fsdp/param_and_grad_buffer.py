@@ -1795,6 +1795,9 @@ class ParamAndGradBuffer:
                 main_buf_dp_group = self.dist_index.get_fsdp_group(
                     is_expert_parallel=group.is_expert_param
                 )
+                main_buf_dp_group_grad_buffer = self.dist_index.get_fsdp_group_grad_buffer(
+                    is_expert_parallel=group.is_expert_param
+                )
 
             gradient_scaling_factor = (
                 self.gradient_scaling_factor
@@ -1863,10 +1866,10 @@ class ParamAndGradBuffer:
                     # Proxy because the number of gradient parameters is the same
                     # as the number of model parameters.
                     group.params,
-                    is_data_distributed=is_grad_buffer_distributed and main_buf_dp_group.size() > 1,
+                    is_data_distributed=is_grad_buffer_distributed and main_buf_dp_group_grad_buffer.size() > 1,
                     dtype=torch.float32 if grad_reduce_in_fp32 else grad_dtype,
                     device=self.device,
-                    data_parallel_group=main_buf_dp_group,
+                    data_parallel_group=main_buf_dp_group_grad_buffer,
                     is_dtype_float8=False,
                     temporary_bucket_allocator=self.main_grad_alloc,
                     gradient_scaling_factor=gradient_scaling_factor,
