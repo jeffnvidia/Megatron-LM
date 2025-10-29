@@ -114,6 +114,7 @@ _HIERARCHICAL_CONTEXT_PARALLEL_GROUPS = None
 # Data parallel group information with context parallel combined.
 _DATA_PARALLEL_GROUP_WITH_CP = None
 _DATA_PARALLEL_GROUP_WITH_CP_GLOO = None
+_DATA_PARALLEL_GROUP_WITH_CP_UCC = None
 _DATA_PARALLEL_GLOBAL_RANKS_WITH_CP = None
 
 # Partial Data parallel group information with context parallel combined.
@@ -781,6 +782,7 @@ def initialize_model_parallel(
     global _DATA_PARALLEL_GLOBAL_RANKS
     global _DATA_PARALLEL_GROUP_WITH_CP
     global _DATA_PARALLEL_GROUP_WITH_CP_GLOO
+    global _DATA_PARALLEL_GROUP_WITH_CP_UCC
     global _DATA_PARALLEL_GLOBAL_RANKS_WITH_CP
     global _INTRA_PARTIAL_DATA_PARALLEL_GROUP_WITH_CP
     global _INTRA_PARTIAL_DATA_PARALLEL_GROUP_WITH_CP_GLOO
@@ -811,6 +813,12 @@ def initialize_model_parallel(
             pg_options=get_nccl_options("dp_cp", nccl_comm_cfgs),
             group_desc="DATA_PARALLEL_GROUP_WITH_CP",
         )
+        group_with_cp_ucc = create_group(
+            ranks_with_cp,
+            timeout=timeout,
+            backend="ucc",
+            group_desc="DATA_PARALLEL_GROUP_WITH_CP_UCC",
+        )
         if create_gloo_process_groups:
             group_with_cp_gloo = create_group(
                 ranks_with_cp,
@@ -823,6 +831,7 @@ def initialize_model_parallel(
         if rank in ranks_with_cp:
             _DATA_PARALLEL_GROUP_WITH_CP = group_with_cp
             _DATA_PARALLEL_GROUP_WITH_CP_GLOO = group_with_cp_gloo
+            _DATA_PARALLEL_GROUP_WITH_CP_UCC = group_with_cp_ucc
             _DATA_PARALLEL_GLOBAL_RANKS_WITH_CP = ranks_with_cp
 
         if num_distributed_optimizer_instances > 1:
@@ -1352,6 +1361,14 @@ def get_data_parallel_group(with_context_parallel=False, partial_data_parallel=F
         assert _DATA_PARALLEL_GROUP is not None, "data parallel group is not initialized"
         assert partial_data_parallel == False, "Partial DP for Optimizer needs to include CP"
         return _DATA_PARALLEL_GROUP
+
+
+def get_data_parallel_group_ucc_with_cp():
+    """Get the ucc data-parallel group the caller rank belongs to."""
+    assert (
+            _DATA_PARALLEL_GROUP_WITH_CP_UCC is not None
+        ), "data parallel group-ucc with context parallel combined is not initialized"
+    return _DATA_PARALLEL_GROUP_WITH_CP_UCC
 
 
 def get_data_parallel_group_gloo(with_context_parallel=False, partial_data_parallel=False):
@@ -1967,6 +1984,9 @@ def destroy_model_parallel():
 
     global _DATA_PARALLEL_GROUP_WITH_CP
     _DATA_PARALLEL_GROUP_WITH_CP = None
+
+    global _DATA_PARALLEL_GROUP_WITH_CP_UCC
+    _DATA_PARALLEL_GROUP_WITH_CP_UCC = None
 
     global _CONTEXT_PARALLEL_GROUP
     _CONTEXT_PARALLEL_GROUP = None

@@ -43,6 +43,8 @@ from .utils import (
     is_mcore_tensor_parallel_duplicated,
 )
 
+import megatron.core.parallel_state as parallel_state
+
 logger = logging.getLogger(__name__)
 
 
@@ -2588,7 +2590,7 @@ class ParamAndGradBuffer:
             all_gather_handler = torch.distributed.all_gather_into_tensor(
                 output_tensor=g.model_weight_buffer.data,
                 input_tensor=shard,
-                group=g.model_weight_buffer.data_parallel_group,
+                group=parallel_state.get_data_parallel_group_ucc_with_cp(),
                 async_op=async_op,
             )
             if async_op:
@@ -3272,15 +3274,16 @@ class AllGatherPipeline:
 
             # Coalesce the asynchronous NCCL operations in this context.
             all_gather_stream.wait_stream(torch.cuda.current_stream())
-            dp_group = self.get_fsdp_buffer(buckets[0]).data_parallel_group
+            # dp_group = self.get_fsdp_buffer(buckets[0]).data_parallel_group
+            dp_group = parallel_state.get_data_parallel_group_ucc_with_cp()
             with torch.cuda.stream(all_gather_stream):
-                with _coalescing_manager(
-                    dp_group, async_ops=async_param_gather
-                ) as coalescing_event:
-                    for bucket_id in buckets:
-                        # All-gather the module weights from each FSDP buffer shard
-                        # into an allocated bucket containing unsharded weights.
-                        self.async_bucket_gather(bucket_id)
+                # with _coalescing_manager(
+                #     dp_group, async_ops=async_param_gather
+                # ) as coalescing_event:
+                for bucket_id in buckets:
+                    # All-gather the module weights from each FSDP buffer shard
+                    # into an allocated bucket containing unsharded weights.
+                    self.async_bucket_gather(bucket_id)
 
             # Replace the parameter all-gather event with coalescing event.
             for bucket_id in buckets:
@@ -3360,7 +3363,8 @@ class AllGatherPipeline:
         param_gather_event = torch.distributed.all_gather_into_tensor(
             output_tensor=bucket.data,
             input_tensor=wbuf.get_shard_from_local_buffer(),
-            group=wbuf.data_parallel_group,
+            # group=wbuf.data_parallel_group,
+            group=parallel_state.get_data_parallel_group_ucc_with_cp(),
             async_op=True,
         )
 
