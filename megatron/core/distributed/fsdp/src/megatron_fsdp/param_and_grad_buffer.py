@@ -36,6 +36,8 @@ from torch.distributed.tensor.device_mesh import _mesh_resources
 from .uneven_dtensor import update_uneven_dtensor_chunk_metadata, validate_uneven_dtensor
 from .utils import _MODEL_PARALLEL_RNG_TRACKER_NAME, FSDPDistributedIndex, get_global_memory_buffer
 
+import megatron.core.parallel_state as parallel_state
+
 logger = logging.getLogger(__name__)
 
 
@@ -2571,7 +2573,7 @@ class ParamAndGradBuffer:
             all_gather_handler = torch.distributed.all_gather_into_tensor(
                 output_tensor=g.model_weight_buffer.data,
                 input_tensor=shard,
-                group=g.model_weight_buffer.data_parallel_group,
+                group=parallel_state.get_data_parallel_group_ucc_with_cp(),
                 async_op=async_op,
             )
             if async_op:
